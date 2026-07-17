@@ -8,8 +8,9 @@
   "scripts": {
     "dev": "node node_modules/vinext/dist/cli.js dev",
     "build": "node node_modules/vinext/dist/cli.js build",
+    "build:itch": "node node_modules/vite/bin/vite.js build --config vite.itch.config.ts",
     "start": "node node_modules/vinext/dist/cli.js start",
-    "test": "npm run build && node --experimental-strip-types --test tests/*.test.mjs",
+    "test": "npm run build && npm run build:itch && node --experimental-strip-types --test tests/*.test.mjs",
     "lint": "node node_modules/eslint/bin/eslint.js . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "node node_modules/drizzle-kit/bin.cjs generate"
   },
