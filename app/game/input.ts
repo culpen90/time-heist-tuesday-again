@@ -2,7 +2,7 @@ import {
   CONTROL_SCHEMES,
   EMPTY_INPUT,
   type PlayerInput,
-} from "./model";
+} from "./model.ts";
 
 const MAX_PLAYERS = 4;
 const GAMEPAD_DEAD_ZONE = 0.2;
@@ -18,6 +18,11 @@ interface KeyboardBinding {
   ability: readonly string[];
   sprint: readonly string[];
 }
+
+type MovementBinding = Pick<
+  KeyboardBinding,
+  "up" | "down" | "left" | "right"
+>;
 
 interface ActionLatch {
   interact: boolean;
@@ -58,7 +63,7 @@ function isWindowTarget(value: InputManagerOptions | Window): value is Window {
 
 const MOVE_KEYS: Record<
   (typeof CONTROL_SCHEMES)[number]["move"],
-  Pick<KeyboardBinding, "up" | "down" | "left" | "right">
+  MovementBinding
 > = {
   WASD: {
     up: ["KeyW", "w"],
@@ -182,7 +187,7 @@ export class InputManager {
     this.detectGamepadJoins(connected);
     const pads = connected.slice(0, MAX_PLAYERS);
     const frames = Array.from({ length: count }, (_, playerIndex) =>
-      this.frameForPlayer(playerIndex, pads[playerIndex] ?? null),
+      this.frameForPlayer(playerIndex, pads[playerIndex] ?? null, count),
     );
     this.commitGamepadButtons(connected);
 
@@ -275,9 +280,15 @@ export class InputManager {
     this.clearHeldState();
   };
 
-  private frameForPlayer(playerIndex: number, gamepad: Gamepad | null): InputFrame {
+  private frameForPlayer(
+    playerIndex: number,
+    gamepad: Gamepad | null,
+    playerCount: number,
+  ): InputFrame {
     const binding = KEYBOARD_BINDINGS[playerIndex];
-    const keyboard = this.keyboardFrame(binding);
+    const soloArrowBinding =
+      playerCount === 1 && playerIndex === 0 ? MOVE_KEYS.ARROWS : undefined;
+    const keyboard = this.keyboardFrame(binding, soloArrowBinding);
     const pad = gamepad ? this.gamepadFrame(gamepad) : null;
     const latch = this.keyboardLatches[playerIndex];
     const previousPad = gamepad
@@ -309,9 +320,28 @@ export class InputManager {
     };
   }
 
-  private keyboardFrame(binding: KeyboardBinding): PlayerInput {
-    const x = Number(this.anyHeld(binding.right)) - Number(this.anyHeld(binding.left));
-    const y = Number(this.anyHeld(binding.down)) - Number(this.anyHeld(binding.up));
+  private keyboardFrame(
+    binding: KeyboardBinding,
+    movementAlias?: MovementBinding,
+  ): PlayerInput {
+    const x =
+      Number(
+        this.anyHeld(binding.right) ||
+          Boolean(movementAlias && this.anyHeld(movementAlias.right)),
+      ) -
+      Number(
+        this.anyHeld(binding.left) ||
+          Boolean(movementAlias && this.anyHeld(movementAlias.left)),
+      );
+    const y =
+      Number(
+        this.anyHeld(binding.down) ||
+          Boolean(movementAlias && this.anyHeld(movementAlias.down)),
+      ) -
+      Number(
+        this.anyHeld(binding.up) ||
+          Boolean(movementAlias && this.anyHeld(movementAlias.up)),
+      );
     const magnitude = Math.hypot(x, y);
 
     return {
